@@ -1,0 +1,31 @@
+:root {
+  /* Paleta Oficial da Barbearia */
+  --bg-dark: #121212;
+  --bg-card: #1A1A1A;
+  --gold: #DAA520;
+  --gold-hover: #B8860B;
+  --text-light: #F5F5F5;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-light);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Efeito suave ao trocar de página */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-content {
+  animation: fadeIn 0.4s ease-out;
+}
