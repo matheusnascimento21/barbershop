@@ -24,40 +24,85 @@ const FadeIn = ({ children, style, delay = '0s' }) => {
 
 export default function Site({ setView, horariosOcupados, handleAgendar }) {
   const [activePage, setActivePage] = useState('inicio');
-  const [formulario, setFormulario] = useState({ nome: '', telefone: '', corte: '', data: '', hora: '' });
+  
+  const [formulario, setFormulario] = useState({ 
+    nome: '', telefone: '', cortes: [], data: '', hora: '', barbeiro: '' 
+  });
 
-  const horariosBase = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'];
+  const profissionais = ['Kauan', 'Matheus'];
+  
   const cortesDisponiveis = [
     { id: 'Degradê', nome: 'Degradê', preco: 'R$ 40,00', valorReal: 40, desc: 'Corte moderno com transição perfeita.' },
     { id: 'Social', nome: 'Social Clássico', preco: 'R$ 35,00', valorReal: 35, desc: 'O tradicional que nunca sai de moda.' },
     { id: 'Barba', nome: 'Barba Completa', preco: 'R$ 25,00', valorReal: 25, desc: 'Alinhamento, toalha quente e navalha.' },
-    { id: 'Combo', nome: 'Combo: Cabelo + Barba', preco: 'R$ 60,00', valorReal: 60, desc: 'O pacote completo para o seu visual.' }
+    { id: 'Sobrancelha', nome: 'Sobrancelha', preco: 'R$ 15,00', valorReal: 15, desc: 'Alinhamento na navalha.' },
+    { id: 'Luzes', nome: 'Luzes / Platinado', preco: 'R$ 80,00', valorReal: 80, desc: 'Mudança de estilo e química.' }
   ];
 
-  const horariosDisponiveis = formulario.data ? horariosBase.filter(hora => !(horariosOcupados[formulario.data] || []).includes(hora)) : [];
+  const hoje = new Date().toLocaleDateString('en-CA'); 
+  const ehDataPassada = formulario.data && formulario.data < hoje;
+
+  let diaDaSemana = -1;
+  if (formulario.data) {
+    const [ano, mes, dia] = formulario.data.split('-');
+    const dataSelecionada = new Date(ano, mes - 1, dia);
+    diaDaSemana = dataSelecionada.getDay(); 
+  }
+
+  let horariosBase = [];
+  if (diaDaSemana >= 1 && diaDaSemana <= 5) {
+    horariosBase = ['14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00'];
+  } else if (diaDaSemana === 6) {
+    horariosBase = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
+  } 
+
+  const chaveAgenda = `${formulario.data}_${formulario.barbeiro}`;
+  const horariosDisponiveis = (formulario.data && formulario.barbeiro && !ehDataPassada && horariosBase.length > 0) 
+    ? horariosBase.filter(hora => !(horariosOcupados[chaveAgenda] || []).includes(hora)) 
+    : [];
 
   const handleChange = (e) => setFormulario({ ...formulario, [e.target.name]: e.target.value });
-  const selecionarCorte = (idCorte) => setFormulario({ ...formulario, corte: idCorte });
+  
+  const toggleCorte = (idCorte) => {
+    setFormulario(prev => {
+      const jaSelecionado = prev.cortes.includes(idCorte);
+      const novosCortes = jaSelecionado 
+        ? prev.cortes.filter(c => c !== idCorte) 
+        : [...prev.cortes, idCorte];
+      return { ...prev, cortes: novosCortes };
+    });
+  };
+
+  const cortesEscolhidos = cortesDisponiveis.filter(c => formulario.cortes.includes(c.id));
+  const precoTotal = cortesEscolhidos.reduce((acc, c) => acc + c.valorReal, 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formulario.corte) return alert("Falta uma jogada! Escolha um tipo de corte.");
+    if (formulario.cortes.length === 0) return alert("Falta uma jogada! Escolha pelo menos um serviço.");
+    if (!formulario.barbeiro) return alert("Escolha o profissional (Kauan ou Matheus).");
+    if (ehDataPassada) return alert("Não é possível agendar em uma data que já passou!");
+    if (horariosBase.length === 0) return alert("Estamos fechados neste dia! Escolha outra data.");
 
-    const corteEscolhido = cortesDisponiveis.find(c => c.id === formulario.corte);
+    const nomesServicos = cortesEscolhidos.map(c => c.nome).join(' + ');
     
     handleAgendar({
-      ...formulario,
-      preco: corteEscolhido.valorReal,
+      nome: formulario.nome,
+      telefone: formulario.telefone,
+      data: formulario.data,
+      hora: formulario.hora,
+      barbeiro: formulario.barbeiro,
+      servicosDescricao: nomesServicos,
+      preco: precoTotal,
       id: Date.now(),
       status: 'pendente'
     });
 
     const dataFormatada = formulario.data.split('-').reverse().join('/');
     const telefoneBarbearia = "553291440052"; 
+    
     const mensagem = `Confirmo o agendamento com o Barber shop Batatabowl dia ${dataFormatada} às ${formulario.hora}`;
     window.open(`https://wa.me/${telefoneBarbearia}?text=${encodeURIComponent(mensagem)}`, '_blank');
-
-    setFormulario({ nome: '', telefone: '', corte: '', data: '', hora: '' });
+    setFormulario({ nome: '', telefone: '', cortes: [], data: '', hora: '', barbeiro: '' });
   };
 
   const scrollToSection = (id) => {
@@ -66,24 +111,25 @@ export default function Site({ setView, horariosOcupados, handleAgendar }) {
     if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const inputStyle = { width: '100%', padding: '15px', marginBottom: '20px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#1A1A1A', color: 'var(--text-light)', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' };
+  const inputStyle = { width: '100%', padding: '15px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#1A1A1A', color: 'var(--text-light)', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' };
+
+  let textoSelectHora = "Escolha o profissional e a data";
+  if (formulario.barbeiro && formulario.data) {
+    if (ehDataPassada) textoSelectHora = "❌ Data Indisponível";
+    else if (horariosBase.length === 0) textoSelectHora = "❌ Fechado aos Domingos";
+    else textoSelectHora = "Escolha o Horário";
+  }
+
+  const cardQualidadeStyle = { backgroundColor: '#1A1A1A', padding: '20px', borderRadius: '12px', border: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '8px' };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
       
-      {/* VAR: Cabeçalho refeito para não quebrar no celular usando Flexbox */}
       <header style={{ 
         backgroundImage: `url('/Cabecalho.png')`, 
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundColor: '#0A0A0A', 
-        padding: '15px', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '15px',
-        position: 'sticky', 
-        top: 0, 
-        zIndex: 1000 
+        backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#0A0A0A', 
+        padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px',
+        position: 'sticky', top: 0, zIndex: 1000 
       }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
           <button onClick={() => setView('login')} style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid #444', color: '#ccc', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>⚙️ Área Restrita</button>
@@ -91,53 +137,155 @@ export default function Site({ setView, horariosOcupados, handleAgendar }) {
 
         <nav style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '10px' }}>
           <button onClick={() => scrollToSection('inicio')} style={{ background: 'transparent', border: 'none', color: activePage === 'inicio' ? 'var(--gold)' : '#fff', borderBottom: activePage === 'inicio' ? '3px solid var(--gold)' : '3px solid transparent', padding: '8px 12px', fontSize: 'clamp(1rem, 2vw, 1.2rem)', cursor: 'pointer', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>Início</button>
+          <button onClick={() => scrollToSection('profissionais')} style={{ background: 'transparent', border: 'none', color: activePage === 'profissionais' ? 'var(--gold)' : '#fff', borderBottom: activePage === 'profissionais' ? '3px solid var(--gold)' : '3px solid transparent', padding: '8px 12px', fontSize: 'clamp(1rem, 2vw, 1.2rem)', cursor: 'pointer', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>Barbeiros</button>
           <button onClick={() => scrollToSection('agendamento')} style={{ background: 'transparent', border: 'none', color: activePage === 'agendamento' ? 'var(--gold)' : '#fff', borderBottom: activePage === 'agendamento' ? '3px solid var(--gold)' : '3px solid transparent', padding: '8px 12px', fontSize: 'clamp(1rem, 2vw, 1.2rem)', cursor: 'pointer', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>Agendar Horário</button>
           <button onClick={() => scrollToSection('sobre-localizacao')} style={{ background: 'transparent', border: 'none', color: activePage === 'sobre-localizacao' ? 'var(--gold)' : '#fff', borderBottom: activePage === 'sobre-localizacao' ? '3px solid var(--gold)' : '3px solid transparent', padding: '8px 12px', fontSize: 'clamp(1rem, 2vw, 1.2rem)', cursor: 'pointer', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>Sobre & Localização</button>
         </nav>
       </header>
 
-      <section id="inicio" style={{ backgroundImage: `linear-gradient(to bottom, transparent 0%, transparent 70%, #121212 100%), url('/Banner.png')`, backgroundColor: '#000', backgroundSize: 'cover', backgroundPosition: 'center', width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', textAlign: 'center', paddingBottom: '15vh' }}>
+      <section id="inicio" style={{ backgroundImage: `linear-gradient(to bottom, transparent 0%, transparent 70%, #121212 100%), url('/Banner.jpeg')`, backgroundColor: '#000', backgroundSize: 'cover', backgroundPosition: 'center', width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', textAlign: 'center', paddingBottom: '15vh' }}>
         <FadeIn style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 20px' }}>
-          {/* VAR: Fonte usando clamp() para se adaptar ao celular automaticamente */}
           <h2 style={{ fontSize: 'clamp(2rem, 6vw, 3rem)', color: '#fff', marginBottom: '20px', textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>Onde a tradição encontra o <br/><strong style={{ color: 'var(--gold)' }}>seu melhor estilo.</strong></h2>
           <button onClick={() => scrollToSection('agendamento')} style={{ padding: '15px 30px', backgroundColor: 'var(--gold)', color: '#000', border: 'none', borderRadius: '8px', fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', boxShadow: '0 4px 15px rgba(218, 165, 32, 0.3)' }}>Agendar Meu Horário</button>
         </FadeIn>
       </section>
 
       <main style={{ padding: '0 5%', maxWidth: '1600px', margin: '0 auto', width: '100%', flexGrow: 1 }}>
-        <section id="agendamento" style={{ width: '100%', marginTop: '-8vh', paddingTop: '0', paddingBottom: '60px', position: 'relative', zIndex: 10, scrollMarginTop: '100px' }}>
+        
+        <section id="profissionais" style={{ width: '100%', marginTop: '40px', paddingTop: '60px', paddingBottom: '60px', scrollMarginTop: '100px' }}>
+          <FadeIn><h2 style={{ color: 'var(--gold)', fontSize: 'clamp(2rem, 5vw, 2.5rem)', borderBottom: '2px solid #333', paddingBottom: '15px', marginBottom: '40px' }}>Nossos Profissionais</h2></FadeIn>
+          
+          <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            
+            {/* CARD KAUAN */}
+            <FadeIn style={{ flex: '1 1 450px', display: 'flex', flexDirection: 'column' }} delay="0s">
+              {/* O VAR ATUOU AQUI: backgroundPosition ajustado para 'center 30%' */}
+              <div style={{ width: '100%', height: '350px', backgroundImage: `url('/Foto Kauan.jpeg')`, backgroundSize: 'cover', backgroundPosition: 'center 30%', borderRadius: '16px', marginBottom: '20px', border: '1px solid #333' }}></div>
+              <p style={{ color: 'var(--gold)', fontWeight: 'bold', letterSpacing: '2px', fontSize: '0.9rem', margin: '0 0 10px 0' }}>SOBRE MIM</p>
+              <h3 style={{ color: '#fff', fontSize: '2.2rem', margin: '0 0 15px 0' }}>Conheça o <span style={{ color: 'var(--gold)' }}>Kauan</span></h3>
+              <p style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.1rem', marginBottom: '30px' }}>Kauan é um barbeiro em crescimento, com grande dedicação e talento. Mesmo jovem, já demonstra alto nível técnico, oferecendo cortes modernos, acabamento preciso e um atendimento totalmente diferenciado.</p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' }}>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>✂️</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Corte Moderno</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Sempre atualizado nas tendências</p>
+                </div>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>⏱️</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Pontualidade</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Sempre no horário marcado</p>
+                </div>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>🏅</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Qualidade Profissional</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Alto nível técnico garantido</p>
+                </div>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>👁️</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Atenção aos Detalhes</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Acabamento impecável</p>
+                </div>
+              </div>
+            </FadeIn>
+
+            {/* CARD MATHEUS */}
+            <FadeIn style={{ flex: '1 1 450px', display: 'flex', flexDirection: 'column' }} delay="0.2s">
+              {/* O VAR ATUOU AQUI: backgroundPosition ajustado para 'center 30%' */}
+              <div style={{ width: '100%', height: '350px', backgroundImage: `url('/Foto Matheus.jpeg')`, backgroundSize: 'cover', backgroundPosition: 'center 30%', borderRadius: '16px', marginBottom: '20px', border: '1px solid #333' }}></div>
+              <p style={{ color: 'var(--gold)', fontWeight: 'bold', letterSpacing: '2px', fontSize: '0.9rem', margin: '0 0 10px 0' }}>SOBRE MIM</p>
+              <h3 style={{ color: '#fff', fontSize: '2.2rem', margin: '0 0 15px 0' }}>Conheça o <span style={{ color: 'var(--gold)' }}>Matheus</span></h3>
+              <p style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.1rem', marginBottom: '30px' }}>Especialista em visagismo e cortes alinhados, Matheus une tradição e modernidade. Com foco total na experiência do cliente, garante um visual autêntico e perfeitamente ajustado ao seu formato de rosto.</p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' }}>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>💈</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Barba Terapia</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Relaxamento e cuidado total</p>
+                </div>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>🤝</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Atendimento Premium</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Foco máximo na sua experiência</p>
+                </div>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>📐</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Visagismo</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>O corte ideal para o seu rosto</p>
+                </div>
+                <div style={cardQualidadeStyle}>
+                  <div style={{ color: 'var(--gold)', fontSize: '1.5rem' }}>🎩</div>
+                  <h4 style={{ color: '#fff', margin: 0, fontSize: '1.1rem' }}>Estilo Clássico</h4>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Elegância que nunca sai de moda</p>
+                </div>
+              </div>
+            </FadeIn>
+
+          </div>
+        </section>
+
+        <section id="agendamento" style={{ width: '100%', marginTop: '40px', paddingTop: '60px', paddingBottom: '60px', borderTop: '1px solid #222', position: 'relative', zIndex: 10, scrollMarginTop: '100px' }}>
           <FadeIn><h2 style={{ color: 'var(--gold)', fontSize: 'clamp(2rem, 5vw, 2.5rem)', borderBottom: '2px solid #333', paddingBottom: '15px', marginBottom: '40px' }}>Agende seu Horário</h2></FadeIn>
           
-          {/* VAR: Adicionado flexWrap para empilhar no celular */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            
             <FadeIn style={{ flex: '1 1 300px' }} delay="0s">
-              <h3 style={{ color: '#fff', marginBottom: '20px', fontSize: '1.3rem' }}>Seus Dados</h3>
+              <h3 style={{ color: '#fff', marginBottom: '15px', fontSize: '1.3rem' }}>Seus Dados</h3>
               <input type="text" name="nome" value={formulario.nome} onChange={handleChange} required style={inputStyle} placeholder="Nome Completo" />
               <input type="tel" name="telefone" value={formulario.telefone} onChange={handleChange} required style={inputStyle} placeholder="WhatsApp" />
+              
+              <h3 style={{ color: '#fff', margin: '20px 0 15px 0', fontSize: '1.3rem' }}>Profissional</h3>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                {profissionais.map(prof => (
+                  <button 
+                    type="button" key={prof} onClick={() => setFormulario({...formulario, barbeiro: prof, hora: ''})}
+                    style={{ flex: 1, padding: '15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s', border: formulario.barbeiro === prof ? '2px solid var(--gold)' : '1px solid #444', backgroundColor: formulario.barbeiro === prof ? 'var(--gold)' : '#1A1A1A', color: formulario.barbeiro === prof ? '#000' : '#fff' }}
+                  >
+                    {prof}
+                  </button>
+                ))}
+              </div>
+
+              <h3 style={{ color: '#fff', margin: '20px 0 15px 0', fontSize: '1.3rem' }}>Data e Hora</h3>
               <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                <input type="date" name="data" value={formulario.data} onChange={handleChange} required style={{...inputStyle, flex: '1 1 140px', marginBottom: 0}} />
-                <select name="hora" value={formulario.hora} onChange={handleChange} required style={{...inputStyle, flex: '1 1 140px', marginBottom: 0}} disabled={!formulario.data}>
-                  <option value="" disabled>Horário</option>
+                <input type="date" name="data" value={formulario.data} min={hoje} onChange={handleChange} required disabled={!formulario.barbeiro} style={{...inputStyle, flex: '1 1 140px', marginBottom: 0}} />
+                
+                <select name="hora" value={formulario.hora} onChange={handleChange} required style={{...inputStyle, flex: '1 1 140px', marginBottom: 0}} disabled={!formulario.data || !formulario.barbeiro || ehDataPassada || horariosBase.length === 0}>
+                  <option value="" disabled>{textoSelectHora}</option>
                   {horariosDisponiveis.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
               </div>
             </FadeIn>
+
             <FadeIn style={{ flex: '1 1 300px' }} delay="0.2s">
-              <h3 style={{ color: '#fff', marginBottom: '20px', fontSize: '1.3rem' }}>Serviço</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {cortesDisponiveis.map((c) => (
-                  <div key={c.id} onClick={() => selecionarCorte(c.id)} style={{ padding: '20px 15px', borderRadius: '10px', cursor: 'pointer', backgroundColor: formulario.corte === c.id ? 'rgba(218, 165, 32, 0.15)' : '#1A1A1A', border: formulario.corte === c.id ? '2px solid var(--gold)' : '2px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div><h4 style={{ margin: '0 0 5px 0', color: formulario.corte === c.id ? 'var(--gold)' : '#fff', fontSize: '1.2rem' }}>{c.nome}</h4><p style={{ margin: 0, color: '#aaa', fontSize: '0.9rem' }}>{c.desc}</p></div>
-                    <span style={{ color: 'var(--gold)', fontWeight: 'bold', fontSize: '1.3rem' }}>{c.preco}</span>
-                  </div>
-                ))}
+              <h3 style={{ color: '#fff', marginBottom: '20px', fontSize: '1.3rem' }}>Serviços (Pode escolher mais de um)</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {cortesDisponiveis.map((c) => {
+                  const isSelected = formulario.cortes.includes(c.id);
+                  return (
+                    <div key={c.id} onClick={() => toggleCorte(c.id)} style={{ padding: '20px 15px', borderRadius: '10px', cursor: 'pointer', backgroundColor: isSelected ? 'rgba(218, 165, 32, 0.15)' : '#1A1A1A', border: isSelected ? '2px solid var(--gold)' : '2px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: '2px solid var(--gold)', backgroundColor: isSelected ? 'var(--gold)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                           {isSelected && <span style={{ color: '#000', fontWeight: 'bold', fontSize: '14px' }}>✓</span>}
+                        </div>
+                        <div>
+                          <h4 style={{ margin: '0 0 5px 0', color: isSelected ? 'var(--gold)' : '#fff', fontSize: '1.1rem' }}>{c.nome}</h4>
+                          <p style={{ margin: 0, color: '#aaa', fontSize: '0.85rem' }}>{c.desc}</p>
+                        </div>
+                      </div>
+                      <span style={{ color: 'var(--gold)', fontWeight: 'bold', fontSize: '1.2rem' }}>{c.preco}</span>
+                    </div>
+                  );
+                })}
               </div>
-              <button type="submit" style={{ width: '100%', padding: '20px', backgroundColor: '#25D366', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '30px' }}>Confirmar no WhatsApp</button>
+              
+              <button type="submit" style={{ width: '100%', padding: '20px', backgroundColor: '#25D366', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '30px' }}>
+                Confirmar no WhatsApp {precoTotal > 0 ? `(Total: R$ ${precoTotal.toFixed(2).replace('.', ',')})` : ''}
+              </button>
             </FadeIn>
           </form>
         </section>
 
-        {/* VAR: Reduzido o gap e forçado o encolhimento das seções */}
         <div id="sobre-localizacao" style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', marginTop: '40px', paddingTop: '60px', paddingBottom: '100px', alignItems: 'stretch', borderTop: '1px solid #222', scrollMarginTop: '100px' }}>
           <FadeIn style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column' }} delay="0s">
             <h2 style={{ color: 'var(--gold)', borderBottom: '2px solid #333', paddingBottom: '15px', fontSize: 'clamp(2rem, 5vw, 2.5rem)', marginBottom: '20px' }}>Sobre a Batatabowl</h2>
