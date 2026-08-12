@@ -143,7 +143,7 @@ export default function Site({ setView, horariosOcupados, handleAgendar }) {
         </nav>
       </header>
 
-      <section id="inicio" style={{ backgroundImage: `linear-gradient(to bottom, transparent 0%, transparent 70%, #121212 100%), url('/Banner.jpeg')`, backgroundColor: '#000', backgroundSize: 'cover', backgroundPosition: 'center', width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', textAlign: 'center', paddingBottom: '15vh' }}>
+      <section id="inicio" style={{ backgroundImage: `linear-gradient(to bottom, transparent 0%, transparent 70%, #121212 100%), url('/Banner.jpeg')`, backgroundColor: '#000', backgroundSize: 'cover', backgroundPosition: '30% center', width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', textAlign: 'center', paddingBottom: '15vh' }}>
         <FadeIn style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 20px' }}>
           <h2 style={{ fontSize: 'clamp(2rem, 6vw, 3rem)', color: '#fff', marginBottom: '20px', textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>Onde a tradição encontra o <br/><strong style={{ color: 'var(--gold)' }}>seu melhor estilo.</strong></h2>
           <button onClick={() => scrollToSection('agendamento')} style={{ padding: '15px 30px', backgroundColor: 'var(--gold)', color: '#000', border: 'none', borderRadius: '8px', fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', boxShadow: '0 4px 15px rgba(218, 165, 32, 0.3)' }}>Agendar Meu Horário</button>
